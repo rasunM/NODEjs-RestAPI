@@ -1,18 +1,32 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-on: [push]
+name: Deploy Express App to EC2
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+
 jobs:
-  Explore-GitHub-Actions:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner for the job
+
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
+      - name: Checkout code
+        uses: actions/checkout@v2  # Checkout the code from the GitHub repository
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.5.3  # Set up SSH key to use for connecting to EC2
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Deploy to EC2
         run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Navigate to the app directory (replace with your directory on EC2)
+            cd NODEjs-RestAPI
+            # Pull the latest code from GitHub
+            git pull origin main
+            # Install dependencies (Node.js, Express, etc.)
+            npm install
+            # Restart the app (using pm2 or another process manager)
+            pm2 restart all || pm2 start index.js  # Restart or start the app with PM2
+          EOF
