@@ -6,27 +6,24 @@ on:
       - main  # Trigger on push to the main branch
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest  # Use the latest Ubuntu runner for the job
+  build:
+    runs-on: self-hosted
 
+    strategy:
+      matrix:
+        node-version: [22.x]
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2  # Checkout the code from the GitHub repository
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{matrix.node-version}}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    - run: pm2 restart my-express-app
+    
+      
 
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.5.3  # Set up SSH key to use for connecting to EC2
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-      - name: Deploy to EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            # Navigate to the app directory (replace with your directory on EC2)
-            cd NODEjs-RestAPI
-            # Pull the latest code from GitHub
-            git pull origin main
-            # Install dependencies (Node.js, Express, etc.)
-            npm install
-            # Restart the app (using pm2 or another process manager)
-            pm2 restart all || pm2 start index.js  # Restart or start the app with PM2
-          EOF
+      
